@@ -22,6 +22,8 @@ def compute_H(anchors):
 
 def detect_forever(cap, fct):
     loopquit = 0
+    show_fps = False
+    fps_counter = 0
 
     H = compute_H([])
     landmarks = cv2.imread('homography_points.png', -1)
@@ -43,14 +45,18 @@ def detect_forever(cap, fct):
         cv2.namedWindow('HAUMogramme detection')
         cv2.setMouseCallback('HAUMogramme detection', winevt, None)
 
+    fps_start = time.time()
     while loopquit == 0:
         key = cv2.waitKey(1)
         if key & 0xFF in (ord('q'), 27):
             cv2.destroyAllWindows()
             loopquit = 2
             break
+        elif key & 0xFF in (ord('f'),):
+            show_fps = not show_fps
 
         ret, frame = cap.read()
+        fps_counter += 1
         if ret:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             corners, ids, _ = aruco.detectMarkers(gray, aruco_dict)
@@ -84,6 +90,12 @@ def detect_forever(cap, fct):
                 frame = cv2.circle(frame, tuple(map(int, a)), 5, (255,0,0), -1)
 
             cv2.imshow('HAUMogramme detection', frame)
+
+        if fps_counter >= 30:
+            t = time.time() - fps_start
+            if show_fps: print('FPS:', fps_counter/t)
+            fps_counter = 0
+            fps_start = time.time()
 
     cap.release()
     cv2.destroyAllWindows()
