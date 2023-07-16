@@ -35,7 +35,7 @@ def detect_forever(cam, fct):
     landmarks = cv2.imread('homography_points.png', -1)
 
     if loopquit == 0:
-        aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
+        aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
         anchors = []
         def winevt(event, x, y, flags, userdata):
             nonlocal anchors, H
