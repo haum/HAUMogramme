@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import cv2
 import cv2.aruco as aruco
 import numpy as np
@@ -19,17 +20,8 @@ def compute_H(anchors):
     H, _ = cv2.findHomography(np.float32(anchors_lst).reshape(4,2), np.float32(target).reshape(4,2), None)
     return H
 
-def detect_forever(cam, fct):
+def detect_forever(cap, fct):
     loopquit = 0
-
-    try:
-        cam = int(cam)
-    except:
-        pass
-    cap = cv2.VideoCapture(cam)
-    if not cap.isOpened():
-        print('Camera not found')
-        loopquit = 1
 
     H = compute_H([])
     landmarks = cv2.imread('homography_points.png', -1)
@@ -137,7 +129,27 @@ class DetectedList:
                 self.evt('del', n)
         self.list = [n for n in self.list if p(n)]
 
-cam = sys.argv[1] if len(sys.argv) > 1 else 0
-dl = DetectedList()
-detect_forever(cam, dl.detected)
+parser = argparse.ArgumentParser(description='Webcam ARUco detection')
+parser.add_argument('camera', nargs='?', default=0, help='Camera to use')
+parser.add_argument('--w', dest='width', type=int, default=1280, help="Camera width")
+parser.add_argument('--h', dest='height', type=int, default=720, help="Camera height")
+parser.add_argument('--fps', dest='fps', type=int, default=25, help="Camera fps")
 
+args = parser.parse_args()
+cam = args.camera
+try:
+    cam = int(cam)
+except:
+    pass
+cap = cv2.VideoCapture(cam, cv2.CAP_V4L2)
+if not cap.isOpened():
+    print('Camera not found')
+    exit()
+cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+cap.set(cv2.CAP_PROP_FPS, args.fps)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
+print('Capture:', cap.get(cv2.CAP_PROP_FRAME_WIDTH), 'x', cap.get(cv2.CAP_PROP_FRAME_HEIGHT), '@', cap.get(cv2.CAP_PROP_FPS))
+
+dl = DetectedList()
+detect_forever(cap, dl.detected)
