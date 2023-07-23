@@ -154,7 +154,7 @@ class Scene:
                     dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
                     track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                     pygame.draw.rect(screen, (0, 0, 255), item, 4)
-                    self.client.send_message("/ping", i, track_id)
+                    self.client.send_message("/ping", [i, track_id])
 
         # highlight moving item
         #    if index_moving != -1:
