@@ -68,7 +68,7 @@ class Scene:
 
     def load_scene(self, path):
         print(f"loading file {path}")
-        with open(sys.argv[1], "r") as f:
+        with open(path, "r") as f:
             saved = json.load(f)
             for i, item in enumerate(saved["items"]):
                 self.items[i].left = item["x"]
@@ -184,6 +184,9 @@ class Scene:
                 self.start = time.time()
 
 scene = Scene()
+
+if len(sys.argv) > 1:
+    scene.load_scene(sys.argv[1])
 scene.run()
 print("After running")
 del(scene.client)
