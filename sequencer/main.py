@@ -151,8 +151,10 @@ class Scene:
                 HIT_BOX_SIZE = 10
                 testRect = Rect(item.center[0]-HIT_BOX_SIZE, item.center[1]-HIT_BOX_SIZE, HIT_BOX_SIZE,HIT_BOX_SIZE)
                 if testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
+                    dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
+                    track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                     pygame.draw.rect(screen, (0, 0, 255), item, 4)
-                    self.client.send_message("/ping", i)
+                    self.client.send_message("/ping", i, track_id)
 
         # highlight moving item
         #    if index_moving != -1:
