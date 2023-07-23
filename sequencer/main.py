@@ -25,6 +25,8 @@ M_2PI = 2*math.pi
 NUM_INTERVAL = 8
 CIRCLE_CENTER = (520, 350)
 CIRCLE_RADIUS = 300
+NUM_TRACKS = 4
+
 
 class Scene:
     def __init__(self) -> None:
@@ -124,12 +126,11 @@ class Scene:
                     self.items[index_moving].move_ip(event.rel)
 
             screen.fill((127, 127, 127))
-        # circle
-            pygame.draw.circle(screen, (200,200,200), CIRCLE_CENTER, CIRCLE_RADIUS)
-        # concentric circles
-            pygame.draw.circle(screen, (180,180,180), CIRCLE_CENTER, 3*CIRCLE_RADIUS/4)
-            pygame.draw.circle(screen, (200,200,200), CIRCLE_CENTER, CIRCLE_RADIUS/2)
-            pygame.draw.circle(screen, (180,180,180), CIRCLE_CENTER, CIRCLE_RADIUS/4)
+        # concentric 'tracks'
+            for i in reversed(range(NUM_TRACKS)):
+                i+=1
+                color = (200,200,200) if i%2 == 0 else (180,180,180)
+                pygame.draw.circle(screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
 
         # sectors
             head_line_color = (0,255,0)
