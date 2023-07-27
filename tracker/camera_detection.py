@@ -27,9 +27,10 @@ def detect_forever(cap, fct):
 
     H = compute_H([])
     landmarks = cv2.imread('homography_points.png', -1)
-
     if loopquit == 0:
-        aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        aruco_dict = cv2.aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        parameters =  cv2.aruco.DetectorParameters()
+        detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
         anchors = []
         def winevt(event, x, y, flags, userdata):
             nonlocal anchors, H
@@ -59,7 +60,7 @@ def detect_forever(cap, fct):
         fps_counter += 1
         if ret:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            corners, ids, _ = aruco.detectMarkers(gray, aruco_dict)
+            corners, ids, _ = detector.detectMarkers(gray)
 
             detections = []
             if not ids is None:
