@@ -9,6 +9,7 @@ import sys
 from pythonosc.osc_server import ThreadingOSCUDPServer
 from pythonosc.dispatcher import Dispatcher
 import threading
+from sound_player import SoundPlayer
 # 31 arucos
 
 indexes = [69, 23, 45, 85, 96, 190, 87, 41, 74, 43]
@@ -20,16 +21,17 @@ SCREEN_W = 1000
 SCREEN_H = 700
 screen = pygame.display.set_mode((1000, 700))
 
-ITEM_SIZE = 40
+ITEM_SIZE = 20
 M_2PI = 2*math.pi
 NUM_INTERVAL = 8
 CIRCLE_CENTER = (520, 350)
 CIRCLE_RADIUS = 300
-NUM_TRACKS = 4
+NUM_TRACKS = 5
 
 
 class Scene:
-    def __init__(self) -> None:
+    def __init__(self, sound_player: SoundPlayer) -> None:
+        self.player = sound_player
         self.client = udp_client.SimpleUDPClient("127.0.0.1", 4000)
         self.dispatcher= Dispatcher()
         self.dispatcher.set_default_handler(self.on_osc)
@@ -41,9 +43,10 @@ class Scene:
         self.angle_inc = 0.01
         self.start = time.time()
         self.populate_items()
+        self.played_per_round = []
 
     def on_osc(self, address, *args):
-        print(f"{address}: {args}")
+        #print(f"{address}: {args}")
         pad_id = args[1]
         pos_x = args[2]
         pos_y = args[3]
@@ -145,16 +148,26 @@ class Scene:
             line_x = CIRCLE_CENTER[0] + math.cos(self.angle) * CIRCLE_RADIUS
             line_y = CIRCLE_CENTER[1] + math.sin(self.angle) * CIRCLE_RADIUS
             for i, item in enumerate(self.items):
-                pygame.draw.rect(screen, (255, 0, 0), item)
-                text_surface = my_font.render(f"{i}", False, (0, 0, 0))
-                screen.blit(text_surface, item.center)
-                HIT_BOX_SIZE = 10
-                testRect = Rect(item.center[0]-HIT_BOX_SIZE, item.center[1]-HIT_BOX_SIZE, HIT_BOX_SIZE,HIT_BOX_SIZE)
-                if testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
-                    dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
+                dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
+                HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
+
+                testRect = Rect(
+                    item.center[0]-HIT_BOX_SIZE/2,
+                    item.center[1]-HIT_BOX_SIZE/2,
+                    HIT_BOX_SIZE,
+                    HIT_BOX_SIZE
+                )
+                pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
+                if dist_to_center <= CIRCLE_RADIUS and testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
                     track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                     pygame.draw.rect(screen, (0, 0, 255), item, 4)
                     self.client.send_message("/ping", [i, track_id])
+                    if i not in self.played_per_round:
+                        self.played_per_round.append(i)
+                        self.player.play(i, track_id)
+                pygame.draw.rect(screen, (255, 0, 0), item)
+                text_surface = my_font.render(f"{i}", False, (0, 0, 0))
+                screen.blit(text_surface, item.center)
 
         # highlight moving item
         #    if index_moving != -1:
@@ -184,9 +197,12 @@ class Scene:
                 self.angle += self.angle_inc
                 if self.angle > M_2PI:
                     self.angle = 0
+                    self.played_per_round = []
                 self.start = time.time()
 
-scene = Scene()
+
+player = SoundPlayer()
+scene = Scene(player)
 
 if len(sys.argv) > 1:
     scene.load_scene(sys.argv[1])
