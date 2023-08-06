@@ -13,6 +13,7 @@ from pythonosc.dispatcher import Dispatcher
 import threading
 from sound_player import SoundPlayer
 import numpy as np
+import datetime
 
 
 def roundPartial (value, resolution):
@@ -35,6 +36,7 @@ NUM_INTERVAL = 8
 CIRCLE_CENTER = (520, 350)
 CIRCLE_RADIUS = 300
 NUM_TRACKS = 5
+SNAP_GRID_INTERVAL = 32
 
 
 class Scene:
@@ -48,9 +50,6 @@ class Scene:
         self.osc_server_thread.start()
         self.items = []
         self.items_in_circle = []
-        self.angle = 0
-        self.angle_inc = 0.01
-        self.start = time.time()
         self.played_per_round = []
         self.interval_angles = []
         self.running = False
@@ -61,6 +60,9 @@ class Scene:
         self.dec_speed_button = Rect(800, 20, 30, 30)
         self.inc_speed_button = Rect(835, 20, 30, 30)
         self.save_button = Rect(880, 20, 50, 30)
+        self.tick = 0
+        self.bpm = 120
+        self.start = datetime.datetime.now()
 
     def on_osc(self, address, *args):
         #print(f"{address}: {args}")
@@ -95,11 +97,11 @@ class Scene:
             for i, item in enumerate(saved["items"]):
                 self.items[i].left = item["x"]
                 self.items[i].top = item["y"]
-            self.angle_inc = saved["angle_inc"]
+            self.bpm = saved["bpm"]
 
     def save_scene(self):
         ret = {}
-        ret["angle_inc"] = self.angle_inc
+        ret["bpm"] = self.bpm
         ret["items"] = []
         for item in self.items:
             ret["items"].append({"x": item.left, "y": item.top})
@@ -122,11 +124,9 @@ class Scene:
                 exit(0)
             elif event.type == MOUSEBUTTONDOWN:
                 if self.dec_speed_button.collidepoint(event.pos):
-                    self.angle_inc -= 0.01
-                    print(f"dec speed to {self.angle_inc}")
+                    self.bpm -= 10
                 elif self.inc_speed_button.collidepoint(event.pos):
-                    self.angle_inc += 0.01
-                    print(f"inc speed to {self.angle_inc}")
+                    self.bpm += 10
                 elif self.save_button.collidepoint(event.pos):
                     print("save scene")
                     self.save_scene()
@@ -142,6 +142,7 @@ class Scene:
                 self.items[self.index_moving].move_ip(event.rel)
 
         screen.fill((127, 127, 127))
+
     # concentric 'tracks'
         for i in reversed(range(NUM_TRACKS)):
             i+=1
@@ -154,12 +155,11 @@ class Scene:
             line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
             line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
             pygame.draw.line(screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
-            if math.isclose(a, self.angle, rel_tol=M_2PI/100):
-                head_line_color = (0,0, 255)
 
     # items
-        line_x = CIRCLE_CENTER[0] + math.cos(self.angle) * CIRCLE_RADIUS
-        line_y = CIRCLE_CENTER[1] + math.sin(self.angle) * CIRCLE_RADIUS
+        angle = (self.tick / SNAP_GRID_INTERVAL) * M_2PI
+        line_x = CIRCLE_CENTER[0] + math.cos(angle) * CIRCLE_RADIUS
+        line_y = CIRCLE_CENTER[1] + math.sin(angle) * CIRCLE_RADIUS
         self.items_in_circle = []
         for i, item in enumerate(self.items):
             dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
@@ -208,15 +208,18 @@ class Scene:
 
         self.draw_score()
 
+        end2 = datetime.datetime.now()
+        diff_ms = self.get_quarter_ms()
+
+        if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
+            self.tick += 1
+            if self.tick == SNAP_GRID_INTERVAL:
+                self.tick = 0
+            self.start = datetime.datetime.now()
         pygame.display.flip()
-        end = time.time()
-        diff = end - self.start
-        if diff > 0.1:
-            self.angle += self.angle_inc
-            if self.angle > M_2PI:
-                self.angle = 0
-                self.played_per_round = []
-            self.start = time.time()
+            
+    def get_quarter_ms(self):
+        return 60000 / self.bpm
 
     def draw_score(self):
         start_x = 10
@@ -239,14 +242,16 @@ class Scene:
                              (0,0,0),
                              (x, start_y),
                              (x, start_y+score_height), width=2)
-        head_pos = (self.angle / M_2PI) * score_width
+
+        head_pos = (self.tick / SNAP_GRID_INTERVAL) * score_width
+
         track_size = score_height / NUM_TRACKS
         for item, track_id in self.items_in_circle:
             a = np.arctan2(item.center[1]- CIRCLE_CENTER[1], item.center[0]- CIRCLE_CENTER[0])
             if a < 0:
                 a = M_2PI + a
             item_pos = (a / M_2PI) * score_width
-            snapped_val = roundPartial(item_pos, score_width / 32)
+            snapped_val = roundPartial(item_pos, score_width / SNAP_GRID_INTERVAL)
             pygame.draw.circle(screen, 
                                (0,255,0),
                                (start_x + snapped_val, start_y+track_size*track_id),
