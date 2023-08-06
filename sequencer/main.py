@@ -12,6 +12,12 @@ from pythonosc.osc_server import ThreadingOSCUDPServer
 from pythonosc.dispatcher import Dispatcher
 import threading
 from sound_player import SoundPlayer
+import numpy as np
+
+
+def roundPartial (value, resolution):
+    return round (value / resolution) * resolution
+
 # 31 arucos
 
 indexes = [69, 23, 45, 85, 96, 190, 87, 41, 74, 43]
@@ -41,6 +47,7 @@ class Scene:
         self.osc_server_thread = threading.Thread(target=self.osc_server.serve_forever)
         self.osc_server_thread.start()
         self.items = []
+        self.items_in_circle = []
         self.angle = 0
         self.angle_inc = 0.01
         self.start = time.time()
@@ -107,6 +114,7 @@ class Scene:
         while self.running:
             self.update()
 
+
     def update(self):
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -152,6 +160,7 @@ class Scene:
     # items
         line_x = CIRCLE_CENTER[0] + math.cos(self.angle) * CIRCLE_RADIUS
         line_y = CIRCLE_CENTER[1] + math.sin(self.angle) * CIRCLE_RADIUS
+        self.items_in_circle = []
         for i, item in enumerate(self.items):
             dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
             HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
@@ -163,13 +172,15 @@ class Scene:
                 HIT_BOX_SIZE
             )
             #pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
-            if dist_to_center <= CIRCLE_RADIUS and testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
+            if dist_to_center <= CIRCLE_RADIUS:
                 track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
-                pygame.draw.rect(screen, (0, 0, 255), item, 4)
-                self.client.send_message("/ping", [i, track_id])
-                if i not in self.played_per_round:
-                    self.played_per_round.append(i)
-                    self.player.play(i, track_id)
+                self.items_in_circle.append((item, track_id))
+                if testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
+                    pygame.draw.rect(screen, (0, 0, 255), item, 4)
+                    self.client.send_message("/ping", [i, track_id])
+                    if i not in self.played_per_round:
+                        self.played_per_round.append(i)
+                        self.player.play(i, track_id)
             pygame.draw.rect(screen, (255, 0, 0), item)
             text_surface = my_font.render(f"{i}", False, (0, 0, 0))
             screen.blit(text_surface, item.center)
@@ -195,6 +206,8 @@ class Scene:
         text_surface = my_font.render("save", False, (255, 255, 255))
         screen.blit(text_surface, self.save_button)
 
+        self.draw_score()
+
         pygame.display.flip()
         end = time.time()
         diff = end - self.start
@@ -205,6 +218,43 @@ class Scene:
                 self.played_per_round = []
             self.start = time.time()
 
+    def draw_score(self):
+        start_x = 10
+        start_y = 570
+        score_width = 900
+        score_height = 120
+        pygame.draw.rect(screen, (255, 255, 255), Rect(start_x, start_y, score_width, score_height))
+        
+        interval_len = score_width / NUM_INTERVAL
+        for i in range(0, NUM_INTERVAL):
+            x = start_x+i*interval_len
+            sub_interval_len = interval_len/4
+            for ii in range(3):
+                xx = x + sub_interval_len*(ii+1)
+                pygame.draw.line(screen,
+                                (127,127,127),
+                                (xx, start_y),
+                                (xx, start_y+score_height), width=2)
+            pygame.draw.line(screen,
+                             (0,0,0),
+                             (x, start_y),
+                             (x, start_y+score_height), width=2)
+        head_pos = (self.angle / M_2PI) * score_width
+        track_size = score_height / NUM_TRACKS
+        for item, track_id in self.items_in_circle:
+            a = np.arctan2(item.center[1]- CIRCLE_CENTER[1], item.center[0]- CIRCLE_CENTER[0])
+            if a < 0:
+                a = M_2PI + a
+            item_pos = (a / M_2PI) * score_width
+            snapped_val = roundPartial(item_pos, score_width / 32)
+            pygame.draw.circle(screen, 
+                               (0,255,0),
+                               (start_x + snapped_val, start_y+track_size*track_id),
+                               radius=10)
+        pygame.draw.line(screen,
+                        (255,0,0),
+                        (start_x + head_pos, start_y),
+                        (start_x + head_pos, start_y+score_height), width=2)
 
 player = SoundPlayer()
 scene = Scene(player)
