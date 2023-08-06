@@ -51,6 +51,9 @@ class Scene:
         for interval in range(NUM_INTERVAL):
             self.interval_angles.append((M_2PI/NUM_INTERVAL) * interval)
         self.populate_items()
+        self.dec_speed_button = Rect(800, 20, 30, 30)
+        self.inc_speed_button = Rect(835, 20, 30, 30)
+        self.save_button = Rect(880, 20, 50, 30)
 
     def on_osc(self, address, *args):
         #print(f"{address}: {args}")
@@ -98,110 +101,109 @@ class Scene:
             json.dump(ret, f)
 
     def run(self):
-        dec_speed_button = Rect(800, 20, 30, 30)
-        inc_speed_button = Rect(835, 20, 30, 30)
-        save_button = Rect(880, 20, 50, 30)
 
         self.running = True
 
-
         while self.running:
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    self.running = False
-                    exit(0)
-                elif event.type == MOUSEBUTTONDOWN:
-                    if dec_speed_button.collidepoint(event.pos):
-                        self.angle_inc -= 0.01
-                        print(f"dec speed to {self.angle_inc}")
-                    elif inc_speed_button.collidepoint(event.pos):
-                        self.angle_inc += 0.01
-                        print(f"inc speed to {self.angle_inc}")
-                    elif save_button.collidepoint(event.pos):
-                        print("save scene")
-                        self.save_scene()
-                    else:
-                        self.index_moving = -1
-                        for i, item in enumerate(self.items):
-                            if item.collidepoint(event.pos):
-                                self.index_moving = i
-                                break
-                elif event.type == MOUSEBUTTONUP:
+            self.update()
+
+    def update(self):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                self.running = False
+                exit(0)
+            elif event.type == MOUSEBUTTONDOWN:
+                if self.dec_speed_button.collidepoint(event.pos):
+                    self.angle_inc -= 0.01
+                    print(f"dec speed to {self.angle_inc}")
+                elif self.inc_speed_button.collidepoint(event.pos):
+                    self.angle_inc += 0.01
+                    print(f"inc speed to {self.angle_inc}")
+                elif self.save_button.collidepoint(event.pos):
+                    print("save scene")
+                    self.save_scene()
+                else:
                     self.index_moving = -1
-                elif event.type == MOUSEMOTION and self.index_moving != -1:
-                    self.items[self.index_moving].move_ip(event.rel)
+                    for i, item in enumerate(self.items):
+                        if item.collidepoint(event.pos):
+                            self.index_moving = i
+                            break
+            elif event.type == MOUSEBUTTONUP:
+                self.index_moving = -1
+            elif event.type == MOUSEMOTION and self.index_moving != -1:
+                self.items[self.index_moving].move_ip(event.rel)
 
-            screen.fill((127, 127, 127))
-        # concentric 'tracks'
-            for i in reversed(range(NUM_TRACKS)):
-                i+=1
-                color = (200,200,200) if i%2 == 0 else (180,180,180)
-                pygame.draw.circle(screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
+        screen.fill((127, 127, 127))
+    # concentric 'tracks'
+        for i in reversed(range(NUM_TRACKS)):
+            i+=1
+            color = (200,200,200) if i%2 == 0 else (180,180,180)
+            pygame.draw.circle(screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
 
-        # sectors
-            head_line_color = (0,255,0)
-            for a in self.interval_angles:
-                line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
-                line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
-                pygame.draw.line(screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
-                if math.isclose(a, self.angle, rel_tol=M_2PI/100):
-                    head_line_color = (0,0, 255)
+    # sectors
+        head_line_color = (0,255,0)
+        for a in self.interval_angles:
+            line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
+            line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
+            pygame.draw.line(screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
+            if math.isclose(a, self.angle, rel_tol=M_2PI/100):
+                head_line_color = (0,0, 255)
 
-        # items
-            line_x = CIRCLE_CENTER[0] + math.cos(self.angle) * CIRCLE_RADIUS
-            line_y = CIRCLE_CENTER[1] + math.sin(self.angle) * CIRCLE_RADIUS
-            for i, item in enumerate(self.items):
-                dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
-                HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
+    # items
+        line_x = CIRCLE_CENTER[0] + math.cos(self.angle) * CIRCLE_RADIUS
+        line_y = CIRCLE_CENTER[1] + math.sin(self.angle) * CIRCLE_RADIUS
+        for i, item in enumerate(self.items):
+            dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
+            HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
 
-                testRect = Rect(
-                    item.center[0]-HIT_BOX_SIZE/2,
-                    item.center[1]-HIT_BOX_SIZE/2,
-                    HIT_BOX_SIZE,
-                    HIT_BOX_SIZE
-                )
-                #pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
-                if dist_to_center <= CIRCLE_RADIUS and testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
-                    track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
-                    pygame.draw.rect(screen, (0, 0, 255), item, 4)
-                    self.client.send_message("/ping", [i, track_id])
-                    if i not in self.played_per_round:
-                        self.played_per_round.append(i)
-                        self.player.play(i, track_id)
-                pygame.draw.rect(screen, (255, 0, 0), item)
-                text_surface = my_font.render(f"{i}", False, (0, 0, 0))
-                screen.blit(text_surface, item.center)
+            testRect = Rect(
+                item.center[0]-HIT_BOX_SIZE/2,
+                item.center[1]-HIT_BOX_SIZE/2,
+                HIT_BOX_SIZE,
+                HIT_BOX_SIZE
+            )
+            #pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
+            if dist_to_center <= CIRCLE_RADIUS and testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
+                track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
+                pygame.draw.rect(screen, (0, 0, 255), item, 4)
+                self.client.send_message("/ping", [i, track_id])
+                if i not in self.played_per_round:
+                    self.played_per_round.append(i)
+                    self.player.play(i, track_id)
+            pygame.draw.rect(screen, (255, 0, 0), item)
+            text_surface = my_font.render(f"{i}", False, (0, 0, 0))
+            screen.blit(text_surface, item.center)
 
-        # highlight moving item
-        #    if self.index_moving != -1:
-        #        pygame.draw.rect(screen, (0, 0, 255), items[self.index_moving], 4)
+    # highlight moving item
+    #    if self.index_moving != -1:
+    #        pygame.draw.rect(screen, (0, 0, 255), items[self.index_moving], 4)
 
-        # moving line
-            pygame.draw.line(screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
+    # moving line
+        pygame.draw.line(screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
 
 
-        #UI
-            pygame.draw.rect(screen, (200, 200, 200), dec_speed_button)
-            text_surface = my_font.render("-", False, (255, 255, 255))
-            screen.blit(text_surface, dec_speed_button)
+    #UI
+        pygame.draw.rect(screen, (200, 200, 200), self.dec_speed_button)
+        text_surface = my_font.render("-", False, (255, 255, 255))
+        screen.blit(text_surface, self.dec_speed_button)
 
-            pygame.draw.rect(screen, (200, 200, 200), inc_speed_button)
-            text_surface = my_font.render("+", False, (255, 255, 255))
-            screen.blit(text_surface, inc_speed_button)
+        pygame.draw.rect(screen, (200, 200, 200), self.inc_speed_button)
+        text_surface = my_font.render("+", False, (255, 255, 255))
+        screen.blit(text_surface, self.inc_speed_button)
 
-            pygame.draw.rect(screen, (200, 200, 200), save_button)
-            text_surface = my_font.render("save", False, (255, 255, 255))
-            screen.blit(text_surface, save_button)
+        pygame.draw.rect(screen, (200, 200, 200), self.save_button)
+        text_surface = my_font.render("save", False, (255, 255, 255))
+        screen.blit(text_surface, self.save_button)
 
-            pygame.display.flip()
-            end = time.time()
-            diff = end - self.start
-            if diff > 0.1:
-                self.angle += self.angle_inc
-                if self.angle > M_2PI:
-                    self.angle = 0
-                    self.played_per_round = []
-                self.start = time.time()
+        pygame.display.flip()
+        end = time.time()
+        diff = end - self.start
+        if diff > 0.1:
+            self.angle += self.angle_inc
+            if self.angle > M_2PI:
+                self.angle = 0
+                self.played_per_round = []
+            self.start = time.time()
 
 
 player = SoundPlayer()
