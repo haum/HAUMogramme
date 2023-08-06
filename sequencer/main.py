@@ -198,6 +198,9 @@ class Scene:
         text_surface = my_font.render("-", False, (255, 255, 255))
         screen.blit(text_surface, self.dec_speed_button)
 
+        text_surface = my_font.render(self.get_tc(), False, (0, 0, 255))
+        screen.blit(text_surface, Rect(800, 60, 100, 30))
+
         pygame.draw.rect(screen, (200, 200, 200), self.inc_speed_button)
         text_surface = my_font.render("+", False, (255, 255, 255))
         screen.blit(text_surface, self.inc_speed_button)
@@ -220,6 +223,9 @@ class Scene:
             
     def get_quarter_ms(self):
         return 60000 / self.bpm
+
+    def get_tc(self)->str:
+        return f"{self.bpm} bpms | {int(self.tick / 4) + 1}:{1+ self.tick % 4}"
 
     def draw_score(self):
         start_x = 10
