@@ -44,8 +44,13 @@ class Scene:
         self.angle = 0
         self.angle_inc = 0.01
         self.start = time.time()
-        self.populate_items()
         self.played_per_round = []
+        self.interval_angles = []
+        self.running = False
+        self.index_moving = -1
+        for interval in range(NUM_INTERVAL):
+            self.interval_angles.append((M_2PI/NUM_INTERVAL) * interval)
+        self.populate_items()
 
     def on_osc(self, address, *args):
         #print(f"{address}: {args}")
@@ -97,17 +102,13 @@ class Scene:
         inc_speed_button = Rect(835, 20, 30, 30)
         save_button = Rect(880, 20, 50, 30)
 
-        running = True
-        index_moving = -1
+        self.running = True
 
-        interval_angles = []
-        for interval in range(NUM_INTERVAL):
-            interval_angles.append((M_2PI/NUM_INTERVAL) * interval)
 
-        while running:
+        while self.running:
             for event in pygame.event.get():
                 if event.type == QUIT:
-                    running = False
+                    self.running = False
                     exit(0)
                 elif event.type == MOUSEBUTTONDOWN:
                     if dec_speed_button.collidepoint(event.pos):
@@ -120,15 +121,15 @@ class Scene:
                         print("save scene")
                         self.save_scene()
                     else:
-                        index_moving = -1
+                        self.index_moving = -1
                         for i, item in enumerate(self.items):
                             if item.collidepoint(event.pos):
-                                index_moving = i
+                                self.index_moving = i
                                 break
                 elif event.type == MOUSEBUTTONUP:
-                    index_moving = -1
-                elif event.type == MOUSEMOTION and index_moving != -1:
-                    self.items[index_moving].move_ip(event.rel)
+                    self.index_moving = -1
+                elif event.type == MOUSEMOTION and self.index_moving != -1:
+                    self.items[self.index_moving].move_ip(event.rel)
 
             screen.fill((127, 127, 127))
         # concentric 'tracks'
@@ -139,7 +140,7 @@ class Scene:
 
         # sectors
             head_line_color = (0,255,0)
-            for a in interval_angles:
+            for a in self.interval_angles:
                 line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
                 line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
                 pygame.draw.line(screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
@@ -159,7 +160,7 @@ class Scene:
                     HIT_BOX_SIZE,
                     HIT_BOX_SIZE
                 )
-                pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
+                #pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
                 if dist_to_center <= CIRCLE_RADIUS and testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
                     track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                     pygame.draw.rect(screen, (0, 0, 255), item, 4)
@@ -172,8 +173,8 @@ class Scene:
                 screen.blit(text_surface, item.center)
 
         # highlight moving item
-        #    if index_moving != -1:
-        #        pygame.draw.rect(screen, (0, 0, 255), items[index_moving], 4)
+        #    if self.index_moving != -1:
+        #        pygame.draw.rect(screen, (0, 0, 255), items[self.index_moving], 4)
 
         # moving line
             pygame.draw.line(screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
