@@ -63,6 +63,7 @@ class Scene:
         self.tick = 0
         self.bpm = 120
         self.start = datetime.datetime.now()
+        self.score = {}
 
     def on_osc(self, address, *args):
         #print(f"{address}: {args}")
@@ -75,7 +76,6 @@ class Scene:
             i = indexes.index(pad_id)
             self.items[i].left = left
             self.items[i].top = right            
-
             print(f"{pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
         # (1, 37, 59.75, 464.25, -0.6055446863174438)
 
@@ -165,22 +165,11 @@ class Scene:
             dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
             HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
 
-            testRect = Rect(
-                item.center[0]-HIT_BOX_SIZE/2,
-                item.center[1]-HIT_BOX_SIZE/2,
-                HIT_BOX_SIZE,
-                HIT_BOX_SIZE
-            )
-            #pygame.draw.rect(screen, (0, 0, 255, 127), testRect)
+
             if dist_to_center <= CIRCLE_RADIUS:
                 track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                 self.items_in_circle.append((item, track_id))
-                if testRect.clipline(CIRCLE_CENTER, (line_x, line_y)):
-                    pygame.draw.rect(screen, (0, 0, 255), item, 4)
-                    self.client.send_message("/ping", [i, track_id])
-                    if i not in self.played_per_round:
-                        self.played_per_round.append(i)
-                        self.player.play(i, track_id)
+
             pygame.draw.rect(screen, (255, 0, 0), item)
             text_surface = my_font.render(f"{i}", False, (0, 0, 0))
             screen.blit(text_surface, item.center)
@@ -209,25 +198,26 @@ class Scene:
         text_surface = my_font.render("save", False, (255, 255, 255))
         screen.blit(text_surface, self.save_button)
 
-        self.draw_score()
 
         end2 = datetime.datetime.now()
         diff_ms = self.get_quarter_ms()
-
+        play_sound = False
         if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
             self.tick += 1
+            play_sound = True
             if self.tick == SNAP_GRID_INTERVAL:
                 self.tick = 0
             self.start = datetime.datetime.now()
+        self.draw_score(play_sound)
         pygame.display.flip()
             
     def get_quarter_ms(self):
-        return 60000 / self.bpm
+        return 15000 / self.bpm
 
     def get_tc(self)->str:
         return f"{self.bpm} bpms | {int(self.tick / 4) + 1}:{1+ self.tick % 4}"
 
-    def draw_score(self):
+    def draw_score(self, play):
         start_x = 10
         start_y = 570
         score_width = 900
@@ -258,6 +248,10 @@ class Scene:
                 a = M_2PI + a
             item_pos = (a / M_2PI) * score_width
             snapped_val = roundPartial(item_pos, score_width / SNAP_GRID_INTERVAL)
+            if snapped_val == score_width:
+                snapped_val = 0
+            if play and head_pos == snapped_val:
+                self.player.play(track_id)
             pygame.draw.circle(screen, 
                                (0,255,0),
                                (start_x + snapped_val, start_y+track_size*track_id),
