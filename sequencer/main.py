@@ -21,7 +21,7 @@ def roundPartial (value, resolution):
 
 # 31 arucos
 
-indexes = [69, 23, 45, 85, 96, 190, 87, 41, 74, 43]
+indexes = [13, 69, 23, 45, 85, 96, 190, 87, 41, 74, 43]
 
 pygame.init()
 pygame.font.init()
