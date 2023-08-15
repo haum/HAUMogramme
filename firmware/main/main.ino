@@ -43,6 +43,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENC_A), spinEnc, FALLING);
 
   pinMode(DIR, OUTPUT);
+  digitalWrite(DIR, LOW);
   pinMode(ENA,OUTPUT);
   digitalWrite(ENA, LOW);
   pinMode(STEP, OUTPUT);
@@ -55,30 +56,32 @@ void setup() {
 void loop() 
 {
   // put your main code here, to run repeatedly:
+ 
   menu();
   if (spindlePos != last_spindlePos) {
     snprintf(LCD_Row_2, 17, "Enc: %3ld ", spindlePos); 
     Print();
     delta_mot = spindlePos - last_spindlePos;
+    last_spindlePos = spindlePos;
     if (delta_mot != 0) {
 
       if (delta_mot > 0) { 
         DHIGH(DIR);
       } else {
         DLOW(DIR);
-        delayMicroseconds(100);
-      }
-      for (int i=0; i <= (abs(delta_mot) * steep_by_click) ; i++ )   {
+        }  
+      delayMicroseconds(100);
+      for (int i=0; i < (abs(delta_mot) * steep_by_click) ; i++ )   {
         DLOW(STEP);
-        delayMicroseconds(500);
+        delayMicroseconds(200);
         DHIGH(STEP);
-        delayMicroseconds(500);
+        delayMicroseconds(2000);
         }
       }
     
     Serial.println(spindlePos);
-    last_spindlePos = spindlePos;
-    }
+    
+    } 
   }
 
 void menu()
