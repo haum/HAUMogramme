@@ -21,7 +21,7 @@ def roundPartial (value, resolution):
 
 # 31 arucos
 
-indexes = [69, 23, 45, 85, 96, 190, 87, 41, 74, 43]
+indexes = [13, 69, 23, 45, 85, 96, 87, 41, 74, 43]
 
 pygame.init()
 pygame.font.init()
@@ -64,20 +64,26 @@ class Scene:
         self.bpm = 120
         self.start = datetime.datetime.now()
         self.score = {}
+        self.tick_by_crank = False
+        self.last_head_pos_rounded = 0
 
     def on_osc(self, address, *args):
         #print(f"{address}: {args}")
-        pad_id = args[1]
-        pos_x = args[2]
-        pos_y = args[3]
-        left = (SCREEN_W/2 - pos_x*CIRCLE_RADIUS) +ITEM_SIZE/2
-        right = (SCREEN_H/2 + pos_y*CIRCLE_RADIUS) -ITEM_SIZE/2
-        if pad_id in indexes:
-            i = indexes.index(pad_id)
-            self.items[i].left = left
-            self.items[i].top = right            
-            print(f"{pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
-        # (1, 37, 59.75, 464.25, -0.6055446863174438)
+        if address == '/crank':
+            self.tick_by_crank = True
+            self.tick = args[0] * SNAP_GRID_INTERVAL
+        else:
+            pad_id = args[1]
+            pos_x = args[2]
+            pos_y = args[3]
+            left = (SCREEN_W/2 - pos_x*CIRCLE_RADIUS) +ITEM_SIZE/2
+            right = (SCREEN_H/2 + pos_y*CIRCLE_RADIUS) -ITEM_SIZE/2
+            if pad_id in indexes:
+                i = indexes.index(pad_id)
+                self.items[i].left = left
+                self.items[i].top = right
+                print(f"{pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
+            # (1, 37, 59.75, 464.25, -0.6055446863174438)
 
     def populate_items(self):
         start_x = 10
@@ -124,8 +130,10 @@ class Scene:
                 exit(0)
             elif event.type == MOUSEBUTTONDOWN:
                 if self.dec_speed_button.collidepoint(event.pos):
+                    self.tick_by_crank = False
                     self.bpm -= 10
                 elif self.inc_speed_button.collidepoint(event.pos):
+                    self.tick_by_crank = False
                     self.bpm += 10
                 elif self.save_button.collidepoint(event.pos):
                     print("save scene")
@@ -203,10 +211,11 @@ class Scene:
         diff_ms = self.get_quarter_ms()
         play_sound = False
         if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
-            self.tick += 1
             play_sound = True
-            if self.tick == SNAP_GRID_INTERVAL:
-                self.tick = 0
+            if not self.tick_by_crank:
+                self.tick += 1
+                if self.tick >= SNAP_GRID_INTERVAL:
+                    self.tick = 0
             self.start = datetime.datetime.now()
         self.draw_score(play_sound)
         pygame.display.flip()
@@ -248,10 +257,13 @@ class Scene:
                 a = M_2PI + a
             item_pos = (a / M_2PI) * score_width
             snapped_val = roundPartial(item_pos, score_width / SNAP_GRID_INTERVAL)
+            head_pos_rounded = roundPartial(head_pos, score_width / SNAP_GRID_INTERVAL)
             if snapped_val == score_width:
                 snapped_val = 0
-            if play and head_pos == snapped_val:
-                self.player.play(track_id)
+            if play and head_pos_rounded == snapped_val:
+               if abs(head_pos_rounded - self.last_head_pos_rounded) > 0.001:
+                   self.last_head_pos_rounded = head_pos_rounded
+                   self.player.play(track_id)
             pygame.draw.circle(screen, 
                                (0,255,0),
                                (start_x + snapped_val, start_y+track_size*track_id),
