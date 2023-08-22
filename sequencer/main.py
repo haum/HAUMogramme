@@ -22,12 +22,8 @@ def roundPartial (value, resolution):
 
 
 NUM_TAGS= 50
-pygame.init()
-pygame.font.init()
-my_font = pygame.font.SysFont('Corbel', 30)
 SCREEN_W = 1000
 SCREEN_H = 700
-screen = pygame.display.set_mode((1000, 700))
 
 ITEM_SIZE = 20
 M_2PI = 2*math.pi
@@ -39,7 +35,12 @@ SNAP_GRID_INTERVAL = 32
 
 
 class Scene:
-    def __init__(self, sound_player: SoundPlayer) -> None:
+    def __init__(self, sound_player: SoundPlayer, no_ui= False) -> None:
+        self.no_ui = no_ui
+        if not no_ui:
+            self.my_font = pygame.font.SysFont('Corbel', 30)
+            self.screen = pygame.display.set_mode((1000, 700))
+
         self.player = sound_player
         self.client = udp_client.SimpleUDPClient("127.0.0.1", 4000)
         self.dispatcher= Dispatcher()
@@ -153,23 +154,23 @@ class Scene:
                 self.index_moving = -1
             elif event.type == MOUSEMOTION and self.index_moving != -1:
                 self.items[self.index_moving].move_ip(event.rel)
+        if not self.no_ui:
+            self.screen.fill((127, 127, 127))
 
-        screen.fill((127, 127, 127))
+        # concentric 'tracks'
+            for i in reversed(range(NUM_TRACKS)):
+                i+=1
+                color = (200,200,200) if i%2 == 0 else (180,180,180)
+                pygame.draw.circle(self.screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
 
-    # concentric 'tracks'
-        for i in reversed(range(NUM_TRACKS)):
-            i+=1
-            color = (200,200,200) if i%2 == 0 else (180,180,180)
-            pygame.draw.circle(screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
+        # sectors
+            head_line_color = (0,255,0)
+            for a in self.interval_angles:
+                line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
+                line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
+                pygame.draw.line(self.screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
 
-    # sectors
-        head_line_color = (0,255,0)
-        for a in self.interval_angles:
-            line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
-            line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
-            pygame.draw.line(screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
-
-    # items
+        # items
         angle = (self.tick / SNAP_GRID_INTERVAL) * M_2PI
         line_x = CIRCLE_CENTER[0] + math.cos(angle) * CIRCLE_RADIUS
         line_y = CIRCLE_CENTER[1] + math.sin(angle) * CIRCLE_RADIUS
@@ -182,34 +183,35 @@ class Scene:
             if dist_to_center <= CIRCLE_RADIUS:
                 track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
                 self.items_in_circle.append((item, track_id))
+            if not self.no_ui:
+                pygame.draw.rect(self.screen, (255, 0, 0), item)
+                text_surface = self.my_font.render(f"{i}", False, (0, 0, 0))
+                self.screen.blit(text_surface, item.center)
 
-            pygame.draw.rect(screen, (255, 0, 0), item)
-            text_surface = my_font.render(f"{i}", False, (0, 0, 0))
-            screen.blit(text_surface, item.center)
+        # highlight moving item
+        #    if self.index_moving != -1:
+        #        pygame.draw.rect(screen, (0, 0, 255), items[self.index_moving], 4)
 
-    # highlight moving item
-    #    if self.index_moving != -1:
-    #        pygame.draw.rect(screen, (0, 0, 255), items[self.index_moving], 4)
-
-    # moving line
-        pygame.draw.line(screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
+        # moving line
+        if not self.no_ui:
+            pygame.draw.line(self.screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
 
 
-    #UI
-        pygame.draw.rect(screen, (200, 200, 200), self.dec_speed_button)
-        text_surface = my_font.render("-", False, (255, 255, 255))
-        screen.blit(text_surface, self.dec_speed_button)
+        #UI
+            pygame.draw.rect(self.screen, (200, 200, 200), self.dec_speed_button)
+            text_surface = self.my_font.render("-", False, (255, 255, 255))
+            self.screen.blit(text_surface, self.dec_speed_button)
 
-        text_surface = my_font.render(self.get_tc(), False, (0, 0, 255))
-        screen.blit(text_surface, Rect(800, 60, 100, 30))
+            text_surface = self.my_font.render(self.get_tc(), False, (0, 0, 255))
+            self.screen.blit(text_surface, Rect(800, 60, 100, 30))
 
-        pygame.draw.rect(screen, (200, 200, 200), self.inc_speed_button)
-        text_surface = my_font.render("+", False, (255, 255, 255))
-        screen.blit(text_surface, self.inc_speed_button)
+            pygame.draw.rect(self.screen, (200, 200, 200), self.inc_speed_button)
+            text_surface = self.my_font.render("+", False, (255, 255, 255))
+            self.screen.blit(text_surface, self.inc_speed_button)
 
-        pygame.draw.rect(screen, (200, 200, 200), self.save_button)
-        text_surface = my_font.render("save", False, (255, 255, 255))
-        screen.blit(text_surface, self.save_button)
+            pygame.draw.rect(self.screen, (200, 200, 200), self.save_button)
+            text_surface = self.my_font.render("save", False, (255, 255, 255))
+            self.screen.blit(text_surface, self.save_button)
 
 
         end2 = datetime.datetime.now()
@@ -223,7 +225,8 @@ class Scene:
                     self.tick = 0
             self.start = datetime.datetime.now()
         self.draw_score(play_sound)
-        pygame.display.flip()
+        if not self.no_ui:
+            pygame.display.flip()
             
     def get_quarter_ms(self):
         return 15000 / self.bpm
@@ -236,22 +239,22 @@ class Scene:
         start_y = 570
         score_width = 900
         score_height = 120
-        pygame.draw.rect(screen, (255, 255, 255), Rect(start_x, start_y, score_width, score_height))
-        
-        interval_len = score_width / NUM_INTERVAL
-        for i in range(0, NUM_INTERVAL):
-            x = start_x+i*interval_len
-            sub_interval_len = interval_len/4
-            for ii in range(3):
-                xx = x + sub_interval_len*(ii+1)
-                pygame.draw.line(screen,
-                                (127,127,127),
-                                (xx, start_y),
-                                (xx, start_y+score_height), width=2)
-            pygame.draw.line(screen,
-                             (0,0,0),
-                             (x, start_y),
-                             (x, start_y+score_height), width=2)
+        if not self.no_ui:
+            pygame.draw.rect(self.screen, (255, 255, 255), Rect(start_x, start_y, score_width, score_height))        
+            interval_len = score_width / NUM_INTERVAL
+            for i in range(0, NUM_INTERVAL):
+                x = start_x+i*interval_len
+                sub_interval_len = interval_len/4
+                for ii in range(3):
+                    xx = x + sub_interval_len*(ii+1)
+                    pygame.draw.line(self.screen,
+                                    (127,127,127),
+                                    (xx, start_y),
+                                    (xx, start_y+score_height), width=2)
+                pygame.draw.line(self.screen,
+                                (0,0,0),
+                                (x, start_y),
+                                (x, start_y+score_height), width=2)
 
         head_pos = (self.tick / SNAP_GRID_INTERVAL) * score_width
 
@@ -269,25 +272,34 @@ class Scene:
                if abs(head_pos_rounded - self.last_head_pos_rounded) > 0.001:
                    self.last_head_pos_rounded = head_pos_rounded
                    self.player.play(track_id)
-            pygame.draw.circle(screen, 
-                               (0,255,0),
-                               (start_x + snapped_val, start_y+track_size*track_id),
-                               radius=10)
-        pygame.draw.line(screen,
-                        (255,0,0),
-                        (start_x + head_pos, start_y),
-                        (start_x + head_pos, start_y+score_height), width=2)
+            if not self.no_ui:
+                pygame.draw.circle(self.screen, 
+                                (0,255,0),
+                                (start_x + snapped_val, start_y+track_size*track_id),
+                                radius=10)
+        if not self.no_ui:
+            pygame.draw.line(self.screen,
+                            (255,0,0),
+                            (start_x + head_pos, start_y),
+                            (start_x + head_pos, start_y+score_height), width=2)
 
-player = SoundPlayer()
-scene = Scene(player)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='HAUMogramme sequencer')
     parser.add_argument('-s', dest='save_file', type=str, default="", help="file to load")
+    parser.add_argument('--no-ui', dest="no_ui", action='store_true')
 
     args = parser.parse_args()
 
+    pygame.init()
+    player = SoundPlayer()
+    if args.no_ui:
+        print("No ui")
+    else:
+        pygame.font.init()
+
+    scene = Scene(player, args.no_ui)
     if args.save_file != "":
         scene.load_scene(args.save_file)
     scene.run()
