@@ -20,9 +20,10 @@ def compute_H(anchors):
     H, _ = cv2.findHomography(np.float32(anchors_lst).reshape(4,2), np.float32(target).reshape(4,2), None)
     return H
 
-def detect_forever(cap, fct):
+def detect_forever(cap, fct, nowindow):
     loopquit = 0
     show_fps = False
+    show_window = not nowindow
     fps_counter = 0
 
     H = compute_H([])
@@ -43,8 +44,9 @@ def detect_forever(cap, fct):
                         anchors.append((x, y))
                         if len(anchors) == 4:
                             H = compute_H(anchors)
-        cv2.namedWindow('HAUMogramme detection')
-        cv2.setMouseCallback('HAUMogramme detection', winevt, None)
+        if show_window:
+            cv2.namedWindow('HAUMogramme detection')
+            cv2.setMouseCallback('HAUMogramme detection', winevt, None)
 
     fps_start = time.time()
     while loopquit == 0:
@@ -53,6 +55,9 @@ def detect_forever(cap, fct):
             cv2.destroyAllWindows()
             loopquit = 2
             break
+        elif key & 0xFF in (ord('p'),):
+            show_window = False
+            cv2.destroyAllWindows()
         elif key & 0xFF in (ord('f'),):
             show_fps = not show_fps
 
@@ -90,7 +95,8 @@ def detect_forever(cap, fct):
             for a in anchors:
                 frame = cv2.circle(frame, tuple(map(int, a)), 5, (255,0,0), -1)
 
-            cv2.imshow('HAUMogramme detection', frame)
+            if show_window:
+                cv2.imshow('HAUMogramme detection', frame)
 
         if fps_counter >= 30:
             t = time.time() - fps_start
@@ -147,6 +153,7 @@ parser.add_argument('camera', nargs='?', default=0, help='Camera to use')
 parser.add_argument('--w', dest='width', type=int, default=1280, help="Camera width")
 parser.add_argument('--h', dest='height', type=int, default=720, help="Camera height")
 parser.add_argument('--fps', dest='fps', type=int, default=25, help="Camera fps")
+parser.add_argument('--nowindow', dest='nowindow', default=False, action="store_true", help="Camera fps")
 
 args = parser.parse_args()
 cam = args.camera
@@ -165,4 +172,4 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
 print('Capture:', cap.get(cv2.CAP_PROP_FRAME_WIDTH), 'x', cap.get(cv2.CAP_PROP_FRAME_HEIGHT), '@', cap.get(cv2.CAP_PROP_FPS))
 
 dl = DetectedList()
-detect_forever(cap, dl.detected)
+detect_forever(cap, dl.detected, args.nowindow)
