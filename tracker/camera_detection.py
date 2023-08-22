@@ -6,8 +6,25 @@ import cv2.aruco as aruco
 import numpy as np
 import time
 import sys
+import json
 from math import atan2, cos, pi
 from pythonosc.udp_client import SimpleUDPClient, OscMessageBuilder
+
+
+def save_conf(anchors):
+    print("Save points")
+    with open("save.json", "w") as f:
+        json.dump(anchors, f)
+
+
+def load_conf():
+    try:
+        with open("save.json", "r") as f:
+            return json.load(f)
+    except:
+        pass
+    return []
+
 
 def compute_H(anchors):
     anchors_lst = []
@@ -32,7 +49,7 @@ def detect_forever(cap, fct, nowindow):
         aruco_dict = cv2.aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
-        anchors = []
+        anchors = load_conf()
         def winevt(event, x, y, flags, userdata):
             nonlocal anchors, H
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -44,6 +61,7 @@ def detect_forever(cap, fct, nowindow):
                         anchors.append((x, y))
                         if len(anchors) == 4:
                             H = compute_H(anchors)
+                            save_conf(anchors)
         if show_window:
             cv2.namedWindow('HAUMogramme detection')
             cv2.setMouseCallback('HAUMogramme detection', winevt, None)
