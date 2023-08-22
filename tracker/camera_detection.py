@@ -46,7 +46,7 @@ def detect_forever(cap, fct, nowindow):
     H = compute_H([])
     landmarks = cv2.imread('homography_points.png', -1)
     if loopquit == 0:
-        aruco_dict = cv2.aruco.getPredefinedDictionary(aruco.DICT_4X4_250)
+        aruco_dict = cv2.aruco.getPredefinedDictionary(aruco.DICT_4X4_50)
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
         anchors = load_conf()
