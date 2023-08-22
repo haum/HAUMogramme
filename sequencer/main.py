@@ -121,6 +121,7 @@ class Scene:
 
         while self.running:
             self.update()
+            time.sleep(0.01)
 
 
     def update(self):
