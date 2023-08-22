@@ -128,9 +128,9 @@ def detect_forever(cap, fct, nowindow):
     return loopquit
 
 class DetectedList:
-    def __init__(self):
+    def __init__(self, ip):
         self.list = []
-        self.osc = SimpleUDPClient('127.0.0.1', 1337)
+        self.osc = SimpleUDPClient(ip, 1337)
 
     def evt(self, ev, n):
         tag, pos, angle, pad_id, timestamp = n
@@ -173,6 +173,7 @@ parser.add_argument('--w', dest='width', type=int, default=1280, help="Camera wi
 parser.add_argument('--h', dest='height', type=int, default=720, help="Camera height")
 parser.add_argument('--fps', dest='fps', type=int, default=25, help="Camera fps")
 parser.add_argument('--nowindow', dest='nowindow', default=False, action="store_true", help="Camera fps")
+parser.add_argument('--ip', dest='ip', default='127.0.0.1', help="IP to which send OSC messages")
 
 args = parser.parse_args()
 cam = args.camera
@@ -190,5 +191,5 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH, args.width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, args.height)
 print('Capture:', cap.get(cv2.CAP_PROP_FRAME_WIDTH), 'x', cap.get(cv2.CAP_PROP_FRAME_HEIGHT), '@', cap.get(cv2.CAP_PROP_FPS))
 
-dl = DetectedList()
+dl = DetectedList(args.ip)
 detect_forever(cap, dl.detected, args.nowindow)
