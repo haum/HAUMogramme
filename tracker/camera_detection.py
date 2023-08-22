@@ -161,7 +161,7 @@ class DetectedList:
             self.detected_item(tag, pos, angle)
         now = time.time()
         def p(n):
-            return now - n[4] < 0.2
+            return now - n[4] < 1
         for n in self.list:
             if not p(n):
                 self.evt('del', n)
