@@ -14,6 +14,7 @@ import threading
 from sound_player import SoundPlayer
 import numpy as np
 import datetime
+import argparse
 
 
 def roundPartial (value, resolution):
@@ -280,9 +281,16 @@ class Scene:
 player = SoundPlayer()
 scene = Scene(player)
 
-if len(sys.argv) > 1:
-    scene.load_scene(sys.argv[1])
-scene.run()
-print("After running")
-del(scene.client)
-pygame.quit()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='HAUMogramme sequencer')
+    parser.add_argument('-s', dest='save_file', type=str, default="", help="file to load")
+
+    args = parser.parse_args()
+
+    if args.save_file != "":
+        scene.load_scene(args.save_file)
+    scene.run()
+    print("After running")
+    del(scene.client)
+    pygame.quit()
