@@ -16,7 +16,7 @@ with serial.Serial(args.tty, 9600) as ser:
     while line != b'':
         line = ser.readline()
         try:
-            c = (int(line.strip()) % args.count) / args.count
+            c = (-int(line.strip()) % args.count) / args.count
             builder = OscMessageBuilder('/crank')
             builder.add_arg(c, OscMessageBuilder.ARG_TYPE_FLOAT)
             osc.send(builder.build())
