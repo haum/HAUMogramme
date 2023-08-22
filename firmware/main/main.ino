@@ -13,7 +13,7 @@ char LCD_Row_2[17];
 volatile long spindlePos = 0; // Spindle position
 long last_spindlePos = 0;
 int delta_mot = 0;
-int steep_by_click = 1;
+int steep_by_click = 16;
 
 #define DIR 11
 #define STEP 12
@@ -73,15 +73,13 @@ void loop()
       delayMicroseconds(100);
       for (int i=0; i < (abs(delta_mot) * steep_by_click) ; i++ )   {
         DLOW(STEP);
-        delayMicroseconds(200);
+        delayMicroseconds(50);
         DHIGH(STEP);
-        delayMicroseconds(2000);
+        delayMicroseconds(100);
         }
-      }
-    
-    Serial.println(spindlePos);
-    
-    } 
+      } 
+      Serial.println(spindlePos);    
+    }
   }
 
 void menu()
@@ -127,17 +125,20 @@ void new_divider()
 }
 void MenuKeySelectPressed()
 {
-  spindlePos = 0 ;
   }
 void MenuKeyRightPressed()
 {
+  spindlePos = 0;
+  last_spindlePos = 0;
+  snprintf(LCD_Row_2, 17, "Enc: %3ld ", spindlePos); 
+  Print();
   }
 void MenuKeyLeftPressed()
 {
   }
 void MenuKeyUpPressed()
 {
-  if (steep_by_click < 10) {
+  if (steep_by_click < 20) {
     steep_by_click++;
     new_divider();
     }
