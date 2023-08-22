@@ -19,10 +19,8 @@ import datetime
 def roundPartial (value, resolution):
     return round (value / resolution) * resolution
 
-# 31 arucos
 
-indexes = [13, 69, 23, 45, 85, 96, 87, 41, 74, 43]
-
+NUM_TAGS= 50
 pygame.init()
 pygame.font.init()
 my_font = pygame.font.SysFont('Corbel', 30)
@@ -68,7 +66,6 @@ class Scene:
         self.last_head_pos_rounded = 0
 
     def on_osc(self, address, *args):
-        #print(f"{address}: {args}")
         if address == '/crank':
             self.tick_by_crank = True
             self.tick = args[0] * SNAP_GRID_INTERVAL
@@ -78,18 +75,24 @@ class Scene:
             pos_y = args[3]
             left = (SCREEN_W/2 - pos_x*CIRCLE_RADIUS) +ITEM_SIZE/2
             right = (SCREEN_H/2 + pos_y*CIRCLE_RADIUS) -ITEM_SIZE/2
-            if pad_id in indexes:
-                i = indexes.index(pad_id)
-                self.items[i].left = left
-                self.items[i].top = right
-                print(f"{pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
+            if pad_id <NUM_TAGS:
+                i = pad_id
+                if address == "/pad/del":
+                    self.items[i].left = 0
+                    self.items[i].top = 0
+                else:                   
+                    self.items[i].left = left
+                    self.items[i].top = right
+                #print(f"{address} {pad_id} {pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
+            else:
+                print(f"pad id {pad_id} not < {NUM_TAGS}")
             # (1, 37, 59.75, 464.25, -0.6055446863174438)
 
     def populate_items(self):
         start_x = 10
         start_y = 10
         num_per_line = 4
-        for i in range(16):
+        for i in range(NUM_TAGS):
             line_i = i % num_per_line
             col_i = int(i / num_per_line)
             px = start_x + line_i*(ITEM_SIZE + 5)
