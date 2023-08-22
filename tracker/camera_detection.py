@@ -50,6 +50,7 @@ def detect_forever(cap, fct, nowindow):
         parameters =  cv2.aruco.DetectorParameters()
         detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
         anchors = load_conf()
+        H = compute_H(anchors)
         def winevt(event, x, y, flags, userdata):
             nonlocal anchors, H
             if event == cv2.EVENT_LBUTTONDOWN:
