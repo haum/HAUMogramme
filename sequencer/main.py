@@ -217,14 +217,14 @@ class Scene:
         end2 = datetime.datetime.now()
         diff_ms = self.get_quarter_ms()
         play_sound = True
-
-        #if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
-        #    play_sound = True
-        #    if not self.tick_by_crank:
-        #        self.tick += 1
-        #        if self.tick >= SNAP_GRID_INTERVAL:
-        #            self.tick = 0
-        #    self.start = datetime.datetime.now()
+        if True:
+            if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
+                play_sound = True
+                if not self.tick_by_crank:
+                    self.tick += 1
+                    if self.tick >= SNAP_GRID_INTERVAL:
+                        self.tick = 0
+                self.start = datetime.datetime.now()
         self.draw_score(play_sound)
         if not self.no_ui:
             pygame.display.flip()

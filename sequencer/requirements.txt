@@ -1,3 +1,4 @@
 pygame
+pyo
 python-osc
 numpy
