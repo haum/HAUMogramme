@@ -82,6 +82,14 @@ class SoundPlayer:
                 Sound("./samples/banks/1/t6.wav"),
             ], drone = Sound("./samples/banks/1/drone.wav")),
 
+            Bank([
+                Sound("./samples/banks/2/t0.wav"),
+                Sound("./samples/banks/2/t1.wav"),
+                Sound("./samples/banks/2/t2.wav"),
+                Sound("./samples/banks/2/t3.wav"),
+                Sound("./samples/banks/2/t4.wav"),
+            ], drone = Sound("./samples/banks/2/drone.wav")),
+
 #            Bank([
 #                Sound("./samples/synth/misc/note_ambience.wav"),
 #                Sound("./samples/synth/misc/7thsweep_wave.wav"),
