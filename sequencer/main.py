@@ -17,11 +17,11 @@ import datetime
 import argparse
 
 
-def roundPartial (value, resolution):
-    return round (value / resolution) * resolution
+def roundPartial(value, resolution):
+    return round(value / resolution) * resolution
 
-
-NUM_TAGS= 50
+MAX_CRANK_SPEED = 0.05
+NUM_TAGS = 50
 SCREEN_W = 1000
 SCREEN_H = 700
 
@@ -35,7 +35,7 @@ SNAP_GRID_INTERVAL = 32
 
 
 class Scene:
-    def __init__(self, sound_player: SoundPlayer, no_ui= False) -> None:
+    def __init__(self, sound_player: SoundPlayer, no_ui=False) -> None:
         self.no_ui = no_ui
         if not no_ui:
             self.my_font = pygame.font.SysFont('Corbel', 30)
@@ -43,10 +43,12 @@ class Scene:
 
         self.player = sound_player
         self.client = udp_client.SimpleUDPClient("127.0.0.1", 4000)
-        self.dispatcher= Dispatcher()
+        self.dispatcher = Dispatcher()
         self.dispatcher.set_default_handler(self.on_osc)
-        self.osc_server = ThreadingOSCUDPServer(("0.0.0.0",1337), self.dispatcher)
-        self.osc_server_thread = threading.Thread(target=self.osc_server.serve_forever)
+        self.osc_server = ThreadingOSCUDPServer(
+            ("0.0.0.0", 1337), self.dispatcher)
+        self.osc_server_thread = threading.Thread(
+            target=self.osc_server.serve_forever)
         self.osc_server_thread.start()
         self.items = []
         self.items_in_circle = []
@@ -65,27 +67,33 @@ class Scene:
         self.start = datetime.datetime.now()
         self.score = {}
         self.tick_by_crank = False
+        self.last_crank_val = 0
+        self.crank_speed = 0
         self.last_head_pos_rounded = 0
 
     def on_osc(self, address, *args):
         if address == '/crank':
             self.tick_by_crank = True
             self.tick = args[0] * SNAP_GRID_INTERVAL
+            crank_speed = abs(self.last_crank_val - args[0])
+            if crank_speed <= MAX_CRANK_SPEED:
+                self.crank_speed = crank_speed
+            self.last_crank_val = args[0]
         else:
             pad_id = args[1]
             pos_x = args[2]
             pos_y = args[3]
-            left = (SCREEN_W/2 - pos_x*CIRCLE_RADIUS) +ITEM_SIZE/2
-            right = (SCREEN_H/2 + pos_y*CIRCLE_RADIUS) -ITEM_SIZE/2
-            if pad_id <NUM_TAGS:
+            left = (SCREEN_W/2 - pos_x*CIRCLE_RADIUS) + ITEM_SIZE/2
+            right = (SCREEN_H/2 + pos_y*CIRCLE_RADIUS) - ITEM_SIZE/2
+            if pad_id < NUM_TAGS:
                 i = pad_id
                 if address == "/pad/del":
                     self.items[i].left = 0
                     self.items[i].top = 0
-                else:                   
+                else:
                     self.items[i].left = left
                     self.items[i].top = right
-                #print(f"{address} {pad_id} {pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
+                # print(f"{address} {pad_id} {pos_x} {pos_y} {self.items[0].left} {self.items[0].top}")
             else:
                 print(f"pad id {pad_id} not < {NUM_TAGS}")
             # (1, 37, 59.75, 464.25, -0.6055446863174438)
@@ -128,7 +136,6 @@ class Scene:
             self.update()
             time.sleep(0.01)
 
-
     def update(self):
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -159,16 +166,18 @@ class Scene:
 
         # concentric 'tracks'
             for i in reversed(range(NUM_TRACKS)):
-                i+=1
-                color = (200,200,200) if i%2 == 0 else (180,180,180)
-                pygame.draw.circle(self.screen, color, CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS) 
+                i += 1
+                color = (200, 200, 200) if i % 2 == 0 else (180, 180, 180)
+                pygame.draw.circle(self.screen, color,
+                                   CIRCLE_CENTER, (i/NUM_TRACKS)*CIRCLE_RADIUS)
 
         # sectors
-            head_line_color = (0,255,0)
+            head_line_color = (0, 255, 0)
             for a in self.interval_angles:
                 line_x = CIRCLE_CENTER[0] + math.cos(a) * CIRCLE_RADIUS
                 line_y = CIRCLE_CENTER[1] + math.sin(a) * CIRCLE_RADIUS
-                pygame.draw.line(self.screen, (90,90,90), CIRCLE_CENTER, (line_x, line_y), width=2)
+                pygame.draw.line(self.screen, (90, 90, 90),
+                                 CIRCLE_CENTER, (line_x, line_y), width=2)
 
         # items
         angle = (self.tick / SNAP_GRID_INTERVAL) * M_2PI
@@ -176,9 +185,9 @@ class Scene:
         line_y = CIRCLE_CENTER[1] + math.sin(angle) * CIRCLE_RADIUS
         self.items_in_circle = []
         for i, item in enumerate(self.items):
-            dist_to_center = math.sqrt((item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
+            dist_to_center = math.sqrt(
+                (item.center[0] - CIRCLE_CENTER[0])**2 + (item.center[1] - CIRCLE_CENTER[1])**2)
             HIT_BOX_SIZE = ITEM_SIZE*(dist_to_center/CIRCLE_RADIUS)*4
-
 
             if dist_to_center <= CIRCLE_RADIUS:
                 track_id = int(dist_to_center/(CIRCLE_RADIUS/NUM_TRACKS))
@@ -194,18 +203,21 @@ class Scene:
 
         # moving line
         if not self.no_ui:
-            pygame.draw.line(self.screen, head_line_color, CIRCLE_CENTER, (line_x, line_y), width=5)
+            pygame.draw.line(self.screen, head_line_color,
+                             CIRCLE_CENTER, (line_x, line_y), width=5)
 
-
-        #UI
-            pygame.draw.rect(self.screen, (200, 200, 200), self.dec_speed_button)
+        # UI
+            pygame.draw.rect(self.screen, (200, 200, 200),
+                             self.dec_speed_button)
             text_surface = self.my_font.render("-", False, (255, 255, 255))
             self.screen.blit(text_surface, self.dec_speed_button)
 
-            text_surface = self.my_font.render(self.get_tc(), False, (0, 0, 255))
+            text_surface = self.my_font.render(
+                str(self.crank_speed), False, (0, 0, 255))
             self.screen.blit(text_surface, Rect(800, 60, 100, 30))
 
-            pygame.draw.rect(self.screen, (200, 200, 200), self.inc_speed_button)
+            pygame.draw.rect(self.screen, (200, 200, 200),
+                             self.inc_speed_button)
             text_surface = self.my_font.render("+", False, (255, 255, 255))
             self.screen.blit(text_surface, self.inc_speed_button)
 
@@ -213,12 +225,12 @@ class Scene:
             text_surface = self.my_font.render("save", False, (255, 255, 255))
             self.screen.blit(text_surface, self.save_button)
 
-
         end2 = datetime.datetime.now()
         diff_ms = self.get_quarter_ms()
         play_sound = True
-        if True:
-            if (end2-self.start).total_seconds()*1000 > diff_ms:# self.get_quarter_ms():
+        if False:
+            # self.get_quarter_ms():
+            if (end2-self.start).total_seconds()*1000 > diff_ms:
                 play_sound = True
                 if not self.tick_by_crank:
                     self.tick += 1
@@ -228,11 +240,11 @@ class Scene:
         self.draw_score(play_sound)
         if not self.no_ui:
             pygame.display.flip()
-            
+
     def get_quarter_ms(self):
         return 15000 / self.bpm
 
-    def get_tc(self)->str:
+    def get_tc(self) -> str:
         return f"{self.bpm} bpms | {int(self.tick / 4) + 1}:{1+ self.tick % 4}"
 
     def draw_score(self, play):
@@ -241,7 +253,8 @@ class Scene:
         score_width = 900
         score_height = 120
         if not self.no_ui:
-            pygame.draw.rect(self.screen, (255, 255, 255), Rect(start_x, start_y, score_width, score_height))        
+            pygame.draw.rect(self.screen, (255, 255, 255), Rect(
+                start_x, start_y, score_width, score_height))
             interval_len = score_width / NUM_INTERVAL
             for i in range(0, NUM_INTERVAL):
                 x = start_x+i*interval_len
@@ -249,46 +262,51 @@ class Scene:
                 for ii in range(3):
                     xx = x + sub_interval_len*(ii+1)
                     pygame.draw.line(self.screen,
-                                    (127,127,127),
-                                    (xx, start_y),
-                                    (xx, start_y+score_height), width=2)
+                                     (127, 127, 127),
+                                     (xx, start_y),
+                                     (xx, start_y+score_height), width=2)
                 pygame.draw.line(self.screen,
-                                (0,0,0),
-                                (x, start_y),
-                                (x, start_y+score_height), width=2)
+                                 (0, 0, 0),
+                                 (x, start_y),
+                                 (x, start_y+score_height), width=2)
 
         head_pos = (self.tick / SNAP_GRID_INTERVAL) * score_width
 
         track_size = score_height / NUM_TRACKS
         for item, track_id in self.items_in_circle:
-            a = np.arctan2(item.center[1]- CIRCLE_CENTER[1], item.center[0]- CIRCLE_CENTER[0])
+            a = np.arctan2(item.center[1] - CIRCLE_CENTER[1],
+                           item.center[0] - CIRCLE_CENTER[0])
             if a < 0:
                 a = M_2PI + a
             item_pos = (a / M_2PI) * score_width
-            snapped_val = roundPartial(item_pos, score_width / SNAP_GRID_INTERVAL)
-            head_pos_rounded = roundPartial(head_pos, score_width / SNAP_GRID_INTERVAL)
+            snapped_val = roundPartial(
+                item_pos, score_width / SNAP_GRID_INTERVAL)
+            head_pos_rounded = roundPartial(
+                head_pos, score_width / SNAP_GRID_INTERVAL)
             if snapped_val == score_width:
                 snapped_val = 0
             if play and head_pos_rounded == snapped_val:
-               if abs(head_pos_rounded - self.last_head_pos_rounded) > 0.001:
-                   self.last_head_pos_rounded = head_pos_rounded
-                   self.player.play(track_id)
+                if abs(head_pos_rounded - self.last_head_pos_rounded) > 0.001:
+                    self.last_head_pos_rounded = head_pos_rounded
+                    audio_speed = self.crank_speed / MAX_CRANK_SPEED
+                    self.player.play(track_id, audio_speed)
             if not self.no_ui:
-                pygame.draw.circle(self.screen, 
-                                (0,255,0),
-                                (start_x + snapped_val, start_y+track_size*track_id),
-                                radius=10)
+                pygame.draw.circle(self.screen,
+                                   (0, 255, 0),
+                                   (start_x + snapped_val,
+                                    start_y+track_size*track_id),
+                                   radius=10)
         if not self.no_ui:
             pygame.draw.line(self.screen,
-                            (255,0,0),
-                            (start_x + head_pos, start_y),
-                            (start_x + head_pos, start_y+score_height), width=2)
-
+                             (255, 0, 0),
+                             (start_x + head_pos, start_y),
+                             (start_x + head_pos, start_y+score_height), width=2)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='HAUMogramme sequencer')
-    parser.add_argument('-s', dest='save_file', type=str, default="", help="file to load")
+    parser.add_argument('-s', dest='save_file', type=str,
+                        default="", help="file to load")
     parser.add_argument('--no-ui', dest="no_ui", action='store_true')
 
     args = parser.parse_args()
@@ -305,5 +323,5 @@ if __name__ == "__main__":
         scene.load_scene(args.save_file)
     scene.run()
     print("After running")
-    del(scene.client)
+    del (scene.client)
     pygame.quit()
