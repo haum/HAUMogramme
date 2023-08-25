@@ -20,6 +20,7 @@ import argparse
 def roundPartial(value, resolution):
     return round(value / resolution) * resolution
 
+
 MAX_CRANK_SPEED = 0.05
 NUM_TAGS = 50
 SCREEN_W = 1000
@@ -63,13 +64,13 @@ class Scene:
         self.inc_speed_button = Rect(835, 20, 30, 30)
         self.save_button = Rect(880, 20, 50, 30)
         self.tick = 0
+        self.last_played_tick = 0
         self.bpm = 120
         self.start = datetime.datetime.now()
         self.score = {}
         self.tick_by_crank = False
         self.last_crank_val = 0
         self.crank_speed = 0
-        self.last_head_pos_rounded = 0
 
     def on_osc(self, address, *args):
         if address == '/crank':
@@ -146,8 +147,9 @@ class Scene:
                     self.tick_by_crank = False
                     self.bpm -= 10
                 elif self.inc_speed_button.collidepoint(event.pos):
-                    self.tick_by_crank = False
-                    self.bpm += 10
+                    self.player.change_bank()
+#                    self.tick_by_crank = False
+#                    self.bpm += 10
                 elif self.save_button.collidepoint(event.pos):
                     print("save scene")
                     self.save_scene()
@@ -212,10 +214,6 @@ class Scene:
             text_surface = self.my_font.render("-", False, (255, 255, 255))
             self.screen.blit(text_surface, self.dec_speed_button)
 
-            text_surface = self.my_font.render(
-                str(self.crank_speed), False, (0, 0, 255))
-            self.screen.blit(text_surface, Rect(800, 60, 100, 30))
-
             pygame.draw.rect(self.screen, (200, 200, 200),
                              self.inc_speed_button)
             text_surface = self.my_font.render("+", False, (255, 255, 255))
@@ -225,11 +223,13 @@ class Scene:
             text_surface = self.my_font.render("save", False, (255, 255, 255))
             self.screen.blit(text_surface, self.save_button)
 
+            text_surface = self.my_font.render(
+                str(self.crank_speed), False, (0, 0, 255))
+            self.screen.blit(text_surface, Rect(800, 60, 100, 30))
+
         end2 = datetime.datetime.now()
-        diff_ms = self.get_quarter_ms()
-        play_sound = True
+        diff_ms = 15000 / self.bpm
         if False:
-            # self.get_quarter_ms():
             if (end2-self.start).total_seconds()*1000 > diff_ms:
                 play_sound = True
                 if not self.tick_by_crank:
@@ -237,70 +237,86 @@ class Scene:
                     if self.tick >= SNAP_GRID_INTERVAL:
                         self.tick = 0
                 self.start = datetime.datetime.now()
-        self.draw_score(play_sound)
+        notes = self.generate_score()
+        self.play_notes(notes)
         if not self.no_ui:
+            self.draw_score(notes)
             pygame.display.flip()
 
-    def get_quarter_ms(self):
-        return 15000 / self.bpm
-
-    def get_tc(self) -> str:
-        return f"{self.bpm} bpms | {int(self.tick / 4) + 1}:{1+ self.tick % 4}"
-
-    def draw_score(self, play):
-        start_x = 10
-        start_y = 570
-        score_width = 900
-        score_height = 120
-        if not self.no_ui:
-            pygame.draw.rect(self.screen, (255, 255, 255), Rect(
-                start_x, start_y, score_width, score_height))
-            interval_len = score_width / NUM_INTERVAL
-            for i in range(0, NUM_INTERVAL):
-                x = start_x+i*interval_len
-                sub_interval_len = interval_len/4
-                for ii in range(3):
-                    xx = x + sub_interval_len*(ii+1)
-                    pygame.draw.line(self.screen,
-                                     (127, 127, 127),
-                                     (xx, start_y),
-                                     (xx, start_y+score_height), width=2)
-                pygame.draw.line(self.screen,
-                                 (0, 0, 0),
-                                 (x, start_y),
-                                 (x, start_y+score_height), width=2)
-
-        head_pos = (self.tick / SNAP_GRID_INTERVAL) * score_width
-
-        track_size = score_height / NUM_TRACKS
+    def generate_score(self):
+        notes = {}
+        item_index = 0
         for item, track_id in self.items_in_circle:
             a = np.arctan2(item.center[1] - CIRCLE_CENTER[1],
                            item.center[0] - CIRCLE_CENTER[0])
             if a < 0:
                 a = M_2PI + a
-            item_pos = (a / M_2PI) * score_width
-            snapped_val = roundPartial(
-                item_pos, score_width / SNAP_GRID_INTERVAL)
-            head_pos_rounded = roundPartial(
-                head_pos, score_width / SNAP_GRID_INTERVAL)
-            if snapped_val == score_width:
+            item_pos = (a / M_2PI) * SNAP_GRID_INTERVAL
+            snapped_val = math.floor(roundPartial(
+                item_pos, M_2PI / SNAP_GRID_INTERVAL))
+            if snapped_val == M_2PI:
                 snapped_val = 0
-            if play and head_pos_rounded == snapped_val:
-                if abs(head_pos_rounded - self.last_head_pos_rounded) > 0.001:
-                    self.last_head_pos_rounded = head_pos_rounded
-                    audio_speed = self.crank_speed / MAX_CRANK_SPEED
+            note_pos = round(snapped_val)
+            if note_pos not in notes:
+                notes[note_pos] = []
+            notes[note_pos].append(track_id)
+            item_index += 1
+
+        return notes
+
+    def play_notes(self, notes):
+        snapped_tick = math.floor(self.tick)
+        if self.last_played_tick == snapped_tick:
+            return
+        num_ticks_to_play = snapped_tick - self.last_played_tick
+        if num_ticks_to_play < 0:
+            num_ticks_to_play = SNAP_GRID_INTERVAL + num_ticks_to_play
+        audio_speed = self.crank_speed / MAX_CRANK_SPEED
+        for t in reversed(range(num_ticks_to_play)):
+            tick = (snapped_tick - t) % SNAP_GRID_INTERVAL
+            if tick in notes:
+                for track_id in notes[tick]:
                     self.player.play(track_id, audio_speed)
-            if not self.no_ui:
-                pygame.draw.circle(self.screen,
-                                   (0, 255, 0),
-                                   (start_x + snapped_val,
-                                    start_y+track_size*track_id),
-                                   radius=10)
-        if not self.no_ui:
+        self.last_played_tick = snapped_tick
+
+    def draw_score(self, notes):
+        start_x = 10
+        start_y = 570
+        score_width = 900
+        score_height = 120
+        pygame.draw.rect(self.screen, (255, 255, 255), Rect(
+            start_x, start_y, score_width, score_height))
+        interval_len = score_width / NUM_INTERVAL
+        for i in range(0, NUM_INTERVAL):
+            x = start_x+i*interval_len
+            sub_interval_len = interval_len/4
+            for ii in range(3):
+                xx = x + sub_interval_len*(ii+1)
+                pygame.draw.line(self.screen,
+                                 (127, 127, 127),
+                                 (xx, start_y),
+                                 (xx, start_y+score_height), width=2)
             pygame.draw.line(self.screen,
-                             (255, 0, 0),
-                             (start_x + head_pos, start_y),
-                             (start_x + head_pos, start_y+score_height), width=2)
+                             (0, 0, 0),
+                             (x, start_y),
+                             (x, start_y+score_height), width=2)
+
+        head_pos = (self.tick / SNAP_GRID_INTERVAL) * score_width
+
+        track_size = score_height / NUM_TRACKS
+
+        for note_pos, track_ids in notes.items():
+            for track_id in track_ids:
+                snapped_val = note_pos*score_width/SNAP_GRID_INTERVAL
+                pygame.draw.circle(self.screen,
+                                (0, 255, 0),
+                                (start_x + snapped_val,
+                                    start_y+track_size*track_id),
+                                radius=10)
+        pygame.draw.line(self.screen,
+                         (255, 0, 0),
+                         (start_x + head_pos, start_y),
+                         (start_x + head_pos, start_y+score_height), width=2)
 
 
 if __name__ == "__main__":
