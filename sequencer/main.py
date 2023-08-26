@@ -261,9 +261,8 @@ class Scene:
             note_pos = round(snapped_val)
             if note_pos not in notes:
                 notes[note_pos] = []
-            notes[note_pos].append(track_id)
+            notes[note_pos].append((track_id, item_index))
             item_index += 1
-
         return notes
 
     def play_notes(self, notes):
@@ -277,8 +276,8 @@ class Scene:
         for t in reversed(range(num_ticks_to_play)):
             tick = (snapped_tick - t) % SNAP_GRID_INTERVAL
             if tick in notes:
-                for track_id in notes[tick]:
-                    self.player.play(track_id, audio_speed)
+                for track_id, index_id in notes[tick]:
+                    self.player.play(track_id, index_id, audio_speed)
         self.last_played_tick = snapped_tick
 
     def draw_score(self, notes):
@@ -308,7 +307,7 @@ class Scene:
         track_size = score_height / NUM_TRACKS
 
         for note_pos, track_ids in notes.items():
-            for track_id in track_ids:
+            for track_id, index_id in track_ids:
                 snapped_val = note_pos*score_width/SNAP_GRID_INTERVAL
                 pygame.draw.circle(self.screen,
                                 (0, 255, 0),

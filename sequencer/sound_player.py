@@ -114,6 +114,6 @@ class SoundPlayer:
             print(f"Enabling blank {self.bank_id}")
             self.banks[self.bank_id].enable()
 
-    def play(self, track: int, speed: float = 1):
+    def play(self, track: int, index: int, speed: float = 1):
         bank = self.banks[self.bank_id]
         bank.play(track, speed)
