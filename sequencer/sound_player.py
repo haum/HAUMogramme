@@ -55,24 +55,19 @@ class SoundPlayer:
         if not use_pygame:
             self.audio_server = pyo.Server(buffersize=4096).boot()
             self.audio_server.start()
-        self.banks = [
-            Bank([
-                Sound("./samples/drums/808/kick1.wav"),
-                Sound("./samples/drums/808/snare.wav"),
-                Sound("./samples/drums/808/hi_conga.wav"),
-                Sound("./samples/drums/808/maracas.wav"),
-                Sound("./samples/drums/808/handclap.wav"),
-            ], drone = Sound("./samples/banks/0/drone.wav")),
+        self.use_banks = False
+        if not self.use_banks:
+            self.samples = [
+                Sound("./samples/banks/0/drone.wav"),
+                Sound("./samples/banks/1/drone.wav"),
+                Sound("./samples/banks/2/drone.wav"),
 
-            Bank([
                 Sound("./samples/banks/0/t0.wav"),
                 Sound("./samples/banks/0/t1.wav"),
                 Sound("./samples/banks/0/t2.wav"),
                 Sound("./samples/banks/0/t3.wav"),
                 Sound("./samples/banks/0/t4.wav"),
-            ], drone = Sound("./samples/banks/0/drone.wav")),
 
-            Bank([
                 Sound("./samples/banks/1/t0.wav"),
                 Sound("./samples/banks/1/t1.wav"),
                 Sound("./samples/banks/1/t2.wav"),
@@ -80,29 +75,70 @@ class SoundPlayer:
                 Sound("./samples/banks/1/t4.wav"),
                 Sound("./samples/banks/1/t5.wav"),
                 Sound("./samples/banks/1/t6.wav"),
-            ], drone = Sound("./samples/banks/1/drone.wav")),
 
-            Bank([
                 Sound("./samples/banks/2/t0.wav"),
                 Sound("./samples/banks/2/t1.wav"),
                 Sound("./samples/banks/2/t2.wav"),
                 Sound("./samples/banks/2/t3.wav"),
                 Sound("./samples/banks/2/t4.wav"),
-            ], drone = Sound("./samples/banks/2/drone.wav")),
 
-#            Bank([
-#                Sound("./samples/synth/misc/note_ambience.wav"),
-#                Sound("./samples/synth/misc/7thsweep_wave.wav"),
-#                Sound("./samples/keys/hit1.wav"),
-#                Sound("./samples/keys/hit2.wav"),
-#                Sound("./samples/keys/hit2.wav"),
-#            ], drone = Sound("./samples/banks/1/drone.wav"))
+                Sound("./samples/synth/misc/note_ambience.wav"),
+                Sound("./samples/synth/misc/7thsweep_wave.wav"),
+                Sound("./samples/keys/hit1.wav"),
+                Sound("./samples/keys/hit2.wav"),
+                Sound("./samples/keys/hit2.wav"),
+            ]
+        if self.use_banks:
+            self.banks = [
+                Bank([
+                    Sound("./samples/drums/808/kick1.wav"),
+                    Sound("./samples/drums/808/snare.wav"),
+                    Sound("./samples/drums/808/hi_conga.wav"),
+                    Sound("./samples/drums/808/maracas.wav"),
+                    Sound("./samples/drums/808/handclap.wav"),
+                ], drone = Sound("./samples/banks/0/drone.wav")),
 
-        ]
-        self.bank_id = 0
-        self.banks[0].enable()
+                Bank([
+                    Sound("./samples/banks/0/t0.wav"),
+                    Sound("./samples/banks/0/t1.wav"),
+                    Sound("./samples/banks/0/t2.wav"),
+                    Sound("./samples/banks/0/t3.wav"),
+                    Sound("./samples/banks/0/t4.wav"),
+                ], drone = Sound("./samples/banks/0/drone.wav")),
+
+                Bank([
+                    Sound("./samples/banks/1/t0.wav"),
+                    Sound("./samples/banks/1/t1.wav"),
+                    Sound("./samples/banks/1/t2.wav"),
+                    Sound("./samples/banks/1/t3.wav"),
+                    Sound("./samples/banks/1/t4.wav"),
+                    Sound("./samples/banks/1/t5.wav"),
+                    Sound("./samples/banks/1/t6.wav"),
+                ], drone = Sound("./samples/banks/1/drone.wav")),
+
+                Bank([
+                    Sound("./samples/banks/2/t0.wav"),
+                    Sound("./samples/banks/2/t1.wav"),
+                    Sound("./samples/banks/2/t2.wav"),
+                    Sound("./samples/banks/2/t3.wav"),
+                    Sound("./samples/banks/2/t4.wav"),
+                ], drone = Sound("./samples/banks/2/drone.wav")),
+
+    #            Bank([
+    #                Sound("./samples/synth/misc/note_ambience.wav"),
+    #                Sound("./samples/synth/misc/7thsweep_wave.wav"),
+    #                Sound("./samples/keys/hit1.wav"),
+    #                Sound("./samples/keys/hit2.wav"),
+    #                Sound("./samples/keys/hit2.wav"),
+    #            ], drone = Sound("./samples/banks/1/drone.wav"))
+
+            ]
+            self.bank_id = 0
+            self.banks[0].enable()
 
     def change_bank(self):
+        if not self.use_banks:
+            return
         prev = self.bank_id
         self.bank_id += 1
         if self.bank_id >= len(self.banks):
@@ -115,5 +151,8 @@ class SoundPlayer:
             self.banks[self.bank_id].enable()
 
     def play(self, track: int, index: int, speed: float = 1):
-        bank = self.banks[self.bank_id]
-        bank.play(track, speed)
+        if self.use_banks:
+            bank = self.banks[self.bank_id]
+            bank.play(track, speed)
+        else:
+            self.samples[index % len(self.samples)].play(speed)
