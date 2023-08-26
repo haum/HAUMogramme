@@ -80,6 +80,8 @@ class Scene:
             if crank_speed <= MAX_CRANK_SPEED:
                 self.crank_speed = crank_speed
             self.last_crank_val = args[0]
+        elif address == "/bank":
+            self.player.change_bank()
         else:
             pad_id = args[1]
             pos_x = args[2]
